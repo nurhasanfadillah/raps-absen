@@ -64,7 +64,7 @@ const Attendance: React.FC = () => {
         status: modalForm.status,
         checkInTime: modalForm.status === 'Present' ? modalForm.checkInTime : undefined,
         checkOutTime: modalForm.status === 'Present' ? modalForm.checkOutTime : undefined,
-        overtimeHours: modalForm.status === 'Present' ? Number(modalForm.overtimeHours) : 0,
+        overtimeHours: Number(modalForm.overtimeHours),
         notes: modalForm.notes
       });
       addToast('success', 'Absensi Tersimpan', 'Data kehadiran berhasil diperbarui.');
@@ -269,27 +269,28 @@ const Attendance: React.FC = () => {
                     </div>
                 ) : null}
 
-                <div className="bg-brand-950/30 p-4 rounded-lg border border-brand-900/50">
-                  <Input 
-                    label="Input Jam Lembur (Jam)" 
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={modalForm.overtimeHours} 
-                    onChange={e => {
-                        const val = Number(e.target.value);
-                        if (val >= 0) setModalForm({...modalForm, overtimeHours: val});
-                    }} 
-                    placeholder="Contoh: 2"
-                  />
-                  <p className="text-[10px] text-brand-400 mt-2">
-                    * Total nilai lembur akan dihitung otomatis saat penggajian berdasarkan tarif lembur karyawan ini.
-                  </p>
-                </div>
               </>
             )}
 
-            <Input 
+            <div className="bg-brand-950/30 p-4 rounded-lg border border-brand-900/50">
+              <Input
+                label="Input Jam Lembur (Jam)"
+                type="number"
+                min="0"
+                step="0.5"
+                value={modalForm.overtimeHours}
+                onChange={e => {
+                    const val = Number(e.target.value);
+                    if (val >= 0) setModalForm({...modalForm, overtimeHours: val});
+                }}
+                placeholder="Contoh: 2"
+              />
+              <p className="text-[10px] text-brand-400 mt-2">
+                * Total nilai lembur akan dihitung otomatis saat penggajian berdasarkan tarif lembur karyawan ini.
+              </p>
+            </div>
+
+            <Input
               label="Catatan" 
               value={modalForm.notes} 
               onChange={e => setModalForm({...modalForm, notes: e.target.value})} 

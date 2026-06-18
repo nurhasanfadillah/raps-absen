@@ -100,7 +100,7 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Chart */}
         <Card className="lg:col-span-2 min-h-[280px] md:min-h-[400px]" title="Statistik Kehadiran">
-          <div className="h-48 md:h-80 w-full mt-2 md:mt-4 -ml-4 md:ml-0">
+          <div className="h-48 md:h-80 w-full mt-2 md:mt-4 -ml-4 md:ml-0" style={{ minWidth: 0, minHeight: '12rem' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={attendanceData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.4} />

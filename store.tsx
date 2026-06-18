@@ -402,11 +402,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const existing = cashAdvances.find(c => c.id === ca.id);
     if (!existing) throw new Error("Data kasbon tidak ditemukan.");
 
-    if (existing.isPaid || existing.deductedInPayrollId) {
-        await addAuditLog('SYSTEM', 'CashAdvance', `Failed attempt to edit locked cash advance ${ca.id}`);
-        throw new Error("Kasbon yang sudah lunas atau terpotong gaji tidak dapat diedit.");
-    }
-
     const dbCA = {
         amount: ca.amount,
         date: ca.date,
@@ -423,11 +418,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteCashAdvance = async (id: string) => {
     const existing = cashAdvances.find(c => c.id === id);
     if (!existing) throw new Error("Data kasbon tidak ditemukan.");
-
-    if (existing.isPaid || existing.deductedInPayrollId) {
-         await addAuditLog('SYSTEM', 'CashAdvance', `Failed attempt to delete locked cash advance ${id}`);
-         throw new Error("Kasbon yang sudah lunas tidak dapat dihapus.");
-    }
 
     const { error } = await supabase.from('cash_advances').delete().eq('id', id);
     if (error) throw new Error(error.message);
