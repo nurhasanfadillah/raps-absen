@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './store';
 import { FeedbackProvider } from './components/Feedback';
 import { Layout } from './components/Layout';
+import { InstallPrompt } from './components/InstallPrompt';
 import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
 import Attendance from './pages/Attendance';
@@ -43,6 +44,7 @@ const App: React.FC = () => {
         <HashRouter>
           <AppRoutes />
         </HashRouter>
+        <InstallPrompt />
       </FeedbackProvider>
     </AppProvider>
   );
