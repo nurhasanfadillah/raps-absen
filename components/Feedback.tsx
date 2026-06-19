@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { X, CheckCircle, AlertTriangle, Info, AlertOctagon, Loader2 } from 'lucide-react';
 
 // --- Types ---
@@ -37,7 +36,10 @@ const ConfirmContext = createContext<ConfirmContextType | undefined>(undefined);
 
 // --- Components ---
 
-const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
+const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({
+  toast,
+  onDismiss,
+}) => {
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
@@ -66,7 +68,7 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
   };
 
   return (
-    <div 
+    <div
       className={`
         flex items-start gap-3 p-4 rounded-xl border shadow-lg transition-all duration-300 pointer-events-auto min-w-[320px] max-w-md
         ${styles[toast.type]}
@@ -78,7 +80,10 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
         <h4 className="font-bold text-sm tracking-wide">{toast.title}</h4>
         <p className="text-sm mt-1 leading-relaxed font-medium opacity-90">{toast.message}</p>
       </div>
-      <button onClick={handleDismiss} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity p-1">
+      <button
+        onClick={handleDismiss}
+        className="shrink-0 opacity-60 hover:opacity-100 transition-opacity p-1"
+      >
         <X size={16} />
       </button>
     </div>
@@ -89,7 +94,11 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
 
 export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [confirmState, setConfirmState] = useState<{ isOpen: boolean; options: ConfirmOptions | null; isLoading: boolean }>({
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    options: ConfirmOptions | null;
+    isLoading: boolean;
+  }>({
     isOpen: false,
     options: null,
     isLoading: false,
@@ -112,13 +121,13 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const handleConfirm = async () => {
     if (!confirmState.options) return;
-    
-    setConfirmState(prev => ({ ...prev, isLoading: true }));
+
+    setConfirmState((prev) => ({ ...prev, isLoading: true }));
     try {
       await confirmState.options.onConfirm();
       setConfirmState({ isOpen: false, options: null, isLoading: false });
     } catch (error) {
-      setConfirmState(prev => ({ ...prev, isLoading: false }));
+      setConfirmState((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -130,7 +139,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     <ToastContext.Provider value={{ addToast }}>
       <ConfirmContext.Provider value={{ confirm }}>
         {children}
-        
+
         {/* Toast Container */}
         <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
           {toasts.map((toast) => (
@@ -141,21 +150,34 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         {/* Global Confirm Dialog */}
         {confirmState.isOpen && confirmState.options && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-fade-in" onClick={!confirmState.isLoading ? handleCancel : undefined} />
+            <div
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-fade-in"
+              onClick={!confirmState.isLoading ? handleCancel : undefined}
+            />
             <div className="bg-white border border-gray-200 w-full max-w-md rounded-xl shadow-2xl relative animate-slide-up overflow-hidden">
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-full shrink-0 ${
-                    confirmState.options.variant === 'danger' ? 'bg-rose-50 text-rose-600' : 
-                    confirmState.options.variant === 'warning' ? 'bg-amber-50 text-amber-600' :
-                    'bg-brand-50 text-brand-600'
-                  }`}>
-                     {confirmState.options.variant === 'danger' ? <AlertOctagon size={24} /> : 
-                      confirmState.options.variant === 'warning' ? <AlertTriangle size={24} /> :
-                      <Info size={24} />}
+                  <div
+                    className={`p-3 rounded-full shrink-0 ${
+                      confirmState.options.variant === 'danger'
+                        ? 'bg-rose-50 text-rose-600'
+                        : confirmState.options.variant === 'warning'
+                          ? 'bg-amber-50 text-amber-600'
+                          : 'bg-brand-50 text-brand-600'
+                    }`}
+                  >
+                    {confirmState.options.variant === 'danger' ? (
+                      <AlertOctagon size={24} />
+                    ) : confirmState.options.variant === 'warning' ? (
+                      <AlertTriangle size={24} />
+                    ) : (
+                      <Info size={24} />
+                    )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">{confirmState.options.title}</h3>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {confirmState.options.title}
+                    </h3>
                     <div className="mt-2 text-sm text-gray-500 leading-relaxed">
                       {confirmState.options.message}
                     </div>
@@ -163,19 +185,20 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 </div>
               </div>
               <div className="bg-gray-50/50 px-6 py-4 flex justify-end gap-3 border-t border-gray-100">
-                <button 
-                  onClick={handleCancel} 
+                <button
+                  onClick={handleCancel}
                   disabled={confirmState.isLoading}
                   className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {confirmState.options.cancelText || 'Batal'}
                 </button>
-                <button 
+                <button
                   onClick={handleConfirm}
                   disabled={confirmState.isLoading}
                   className={`px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm flex items-center gap-2 transition-all disabled:opacity-50 ${
-                    confirmState.options.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-700' : 
-                    'bg-brand-600 hover:bg-brand-700'
+                    confirmState.options.variant === 'danger'
+                      ? 'bg-rose-600 hover:bg-rose-700'
+                      : 'bg-brand-600 hover:bg-brand-700'
                   }`}
                 >
                   {confirmState.isLoading && <Loader2 size={16} className="animate-spin" />}
@@ -185,7 +208,6 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             </div>
           </div>
         )}
-
       </ConfirmContext.Provider>
     </ToastContext.Provider>
   );

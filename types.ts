@@ -1,5 +1,3 @@
-
-
 export type Role = 'Admin' | 'Staff' | 'Manager' | 'Intern';
 
 export interface Employee {
@@ -48,21 +46,21 @@ export interface PayrollItem {
   employeeName: string;
   role: Role;
   baseSalary: number; // Nominal Gaji Harian
-  
+
   // Audit Kehadiran
   totalPresence: number; // Total hari hadir fisik (count)
   totalFullDays: number; // Hadir <= 09:00
   totalHalfDays: number; // Hadir > 09:00
   totalEffectiveDays: number; // (Full * 1) + (Half * 0.5)
   totalBasePay: number; // totalEffectiveDays * baseSalary
-  
-  totalOvertimeHours: number; 
-  overtimeRate: number; 
-  totalOvertimePay: number; 
-  
+
+  totalOvertimeHours: number;
+  overtimeRate: number;
+  totalOvertimePay: number;
+
   // Deduksi
   deductionIds?: string[]; // Array ID Kasbon yang spesifik dipotong
-  totalDeductions: number; 
+  totalDeductions: number;
   netSalary: number;
   periodStart?: string; // Helper for UI
   periodEnd?: string; // Helper for UI
