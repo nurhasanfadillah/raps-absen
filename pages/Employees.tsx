@@ -1,9 +1,36 @@
 import React, { useState } from 'react';
+import { z } from 'zod';
 import { useApp } from '../store';
 import { useToast, useConfirm } from '../components/Feedback';
-import { Card, Button, Input, Select, Modal, StatusBadge } from '../components/UIComponents';
-import { Plus, Search, Edit2, Trash2, MoreVertical, Filter, AlertTriangle, Phone, Mail, Calendar } from 'lucide-react';
+import { Button, Input, Select, Modal, StatusBadge } from '../components/UIComponents';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  AlertTriangle,
+  Phone,
+  Mail,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { Employee, Role } from '../types';
+
+const employeeSchema = z.object({
+  fullName: z.string().min(3, 'Nama minimal 3 karakter'),
+  role: z.enum(['Admin', 'Staff', 'Manager', 'Intern']),
+  baseSalary: z.number().positive('Gaji pokok harus lebih dari 0'),
+  overtimeRate: z.number().min(0, 'Tarif lembur tidak boleh negatif'),
+  joinDate: z.string().min(1, 'Tanggal bergabung wajib diisi'),
+  phone: z.string().min(10, 'Nomor HP minimal 10 digit'),
+  status: z.enum(['Active', 'Inactive']),
+  email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
+});
+
+type EmployeeFormErrors = Partial<Record<keyof z.infer<typeof employeeSchema>, string>>;
+
+const ITEMS_PER_PAGE = 10;
 
 const Employees: React.FC = () => {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useApp();
@@ -12,6 +39,8 @@ const Employees: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<EmployeeFormErrors>({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Form State
   const [formData, setFormData] = useState<Partial<Employee>>({
@@ -22,27 +51,51 @@ const Employees: React.FC = () => {
     status: 'Active',
     joinDate: new Date().toISOString().split('T')[0],
     email: '',
-    phone: ''
+    phone: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const result = employeeSchema.safeParse({
+      ...formData,
+      baseSalary: Number(formData.baseSalary),
+      overtimeRate: Number(formData.overtimeRate),
+    });
+    if (!result.success) {
+      const errors: EmployeeFormErrors = {};
+      result.error.issues.forEach((issue) => {
+        const field = issue.path[0] as keyof EmployeeFormErrors;
+        errors[field] = issue.message;
+      });
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     try {
-        if (editingId) {
-          await updateEmployee({ ...formData, id: editingId } as Employee);
-          addToast('success', 'Berhasil Diperbarui', `Data karyawan ${formData.fullName} telah diperbarui.`);
-        } else {
-          await addEmployee({ 
-            ...formData, 
-            id: `EMP-${Date.now().toString().slice(-4)}`,
-            baseSalary: Number(formData.baseSalary),
-            overtimeRate: Number(formData.overtimeRate)
-          } as Employee);
-          addToast('success', 'Karyawan Ditambahkan', `Berhasil menambahkan ${formData.fullName} ke database.`);
-        }
-        closeModal();
-    } catch (error) {
-        addToast('error', 'Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan data karyawan.');
+      if (editingId) {
+        await updateEmployee({ ...formData, id: editingId } as Employee);
+        addToast(
+          'success',
+          'Berhasil Diperbarui',
+          `Data karyawan ${formData.fullName} telah diperbarui.`
+        );
+      } else {
+        await addEmployee({
+          ...formData,
+          id: `EMP-${Date.now().toString().slice(-4)}`,
+          baseSalary: Number(formData.baseSalary),
+          overtimeRate: Number(formData.overtimeRate),
+        } as Employee);
+        addToast(
+          'success',
+          'Karyawan Ditambahkan',
+          `Berhasil menambahkan ${formData.fullName} ke database.`
+        );
+      }
+      closeModal();
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan data karyawan.';
+      addToast('error', 'Gagal Menyimpan', msg);
     }
   };
 
@@ -54,23 +107,24 @@ const Employees: React.FC = () => {
 
   const handleDelete = (id: string, name: string) => {
     confirm({
-        title: 'Hapus Karyawan?',
-        message: (
-            <span>
-                Apakah Anda yakin ingin menghapus data karyawan <strong>{name}</strong>? 
-                Tindakan ini tidak dapat dibatalkan.
-            </span>
-        ),
-        variant: 'danger',
-        confirmText: 'Ya, Hapus',
-        onConfirm: async () => {
-            try {
-                await deleteEmployee(id);
-                addToast('success', 'Data Dihapus', `Data karyawan ${name} berhasil dihapus.`);
-            } catch (error: any) {
-                addToast('error', 'Penghapusan Ditolak', error.message);
-            }
+      title: 'Hapus Karyawan?',
+      message: (
+        <span>
+          Apakah Anda yakin ingin menghapus data karyawan <strong>{name}</strong>? Tindakan ini
+          tidak dapat dibatalkan.
+        </span>
+      ),
+      variant: 'danger',
+      confirmText: 'Ya, Hapus',
+      onConfirm: async () => {
+        try {
+          await deleteEmployee(id);
+          addToast('success', 'Data Dihapus', `Data karyawan ${name} berhasil dihapus.`);
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Terjadi kesalahan saat menghapus.';
+          addToast('error', 'Penghapusan Ditolak', msg);
         }
+      },
     });
   };
 
@@ -78,14 +132,33 @@ const Employees: React.FC = () => {
     setIsModalOpen(false);
     setEditingId(null);
     setFormData({
-      fullName: '', role: 'Staff', baseSalary: 0, overtimeRate: 0, status: 'Active',
-      joinDate: new Date().toISOString().split('T')[0], email: '', phone: ''
+      fullName: '',
+      role: 'Staff',
+      baseSalary: 0,
+      overtimeRate: 0,
+      status: 'Active',
+      joinDate: new Date().toISOString().split('T')[0],
+      email: '',
+      phone: '',
     });
+    setFormErrors({});
   };
 
-  const filtered = employees.filter(e => 
-    e.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    e.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const filtered = employees.filter(
+    (e) =>
+      e.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
 
   return (
@@ -98,16 +171,17 @@ const Employees: React.FC = () => {
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-3 md:top-2.5 text-slate-500" size={16} />
-            <input 
-              type="text" 
-              placeholder="Cari nama atau ID..." 
+            <input
+              type="text"
+              placeholder="Cari nama atau ID..."
               className="w-full pl-10 bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 md:py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-900/50 transition-all placeholder:text-slate-600 shadow-sm"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
           <Button onClick={() => setIsModalOpen(true)} className="w-full md:w-auto">
-            <Plus size={18} /> <span className="md:hidden">Tambah Karyawan</span><span className="hidden md:inline">Baru</span>
+            <Plus size={18} /> <span className="md:hidden">Tambah Karyawan</span>
+            <span className="hidden md:inline">Baru</span>
           </Button>
         </div>
       </div>
@@ -118,16 +192,28 @@ const Employees: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-850 border-b border-slate-800">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20">ID</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Karyawan</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Jabatan</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Tanggal Bergabung</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Aksi</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20">
+                  ID
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Karyawan
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Jabatan
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Tanggal Bergabung
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {filtered.map(emp => (
+              {paginated.map((emp) => (
                 <tr key={emp.id} className="group hover:bg-slate-800 transition-colors">
                   <td className="px-6 py-4 text-xs font-mono text-slate-500">{emp.id}</td>
                   <td className="px-6 py-4">
@@ -142,14 +228,22 @@ const Employees: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-400">{emp.role}</td>
-                  <td className="px-6 py-4"><StatusBadge status={emp.status} /></td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={emp.status} />
+                  </td>
                   <td className="px-6 py-4 text-sm text-slate-500">{emp.joinDate}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(emp)} className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
+                      <button
+                        onClick={() => openEdit(emp)}
+                        className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
+                      >
                         <Edit2 size={16} />
                       </button>
-                      <button onClick={() => handleDelete(emp.id, emp.fullName)} className="p-2 hover:bg-red-950/30 rounded-lg text-slate-400 hover:text-red-400 transition-colors">
+                      <button
+                        onClick={() => handleDelete(emp.id, emp.fullName)}
+                        className="p-2 hover:bg-red-950/30 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                      >
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -170,133 +264,191 @@ const Employees: React.FC = () => {
 
       {/* Mobile Grid/Cards */}
       <div className="md:hidden grid grid-cols-1 gap-4">
-        {filtered.map(emp => (
-          <div key={emp.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+        {paginated.map((emp) => (
+          <div
+            key={emp.id}
+            className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm"
+          >
             <div className="flex justify-between items-start mb-3">
-               <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-brand-950/30 flex items-center justify-center text-brand-400 font-bold text-sm border border-brand-900/50">
-                    {emp.fullName.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-200 text-sm">{emp.fullName}</h3>
-                    <p className="text-xs text-slate-500">{emp.role}</p>
-                  </div>
-               </div>
-               <StatusBadge status={emp.status} />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-brand-950/30 flex items-center justify-center text-brand-400 font-bold text-sm border border-brand-900/50">
+                  {emp.fullName.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-200 text-sm">{emp.fullName}</h3>
+                  <p className="text-xs text-slate-500">{emp.role}</p>
+                </div>
+              </div>
+              <StatusBadge status={emp.status} />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-4 text-xs border-t border-slate-800 py-3">
-               <div className="flex flex-col">
-                  <span className="text-slate-500 mb-0.5">ID Karyawan</span>
-                  <span className="text-slate-300 font-mono">{emp.id}</span>
-               </div>
-               <div className="flex flex-col">
-                  <span className="text-slate-500 mb-0.5">Bergabung</span>
-                  <span className="text-slate-300 flex items-center gap-1"><Calendar size={12}/> {emp.joinDate}</span>
-               </div>
-               {emp.phone && (
-                   <div className="flex flex-col col-span-2 pt-1">
-                      <span className="text-slate-500 mb-0.5">Kontak</span>
-                      <div className="flex items-center gap-3">
-                         <span className="text-slate-300 flex items-center gap-1"><Phone size={12}/> {emp.phone}</span>
-                         {emp.email && <span className="text-slate-300 flex items-center gap-1"><Mail size={12}/> {emp.email}</span>}
-                      </div>
-                   </div>
-               )}
+              <div className="flex flex-col">
+                <span className="text-slate-500 mb-0.5">ID Karyawan</span>
+                <span className="text-slate-300 font-mono">{emp.id}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-slate-500 mb-0.5">Bergabung</span>
+                <span className="text-slate-300 flex items-center gap-1">
+                  <Calendar size={12} /> {emp.joinDate}
+                </span>
+              </div>
+              {emp.phone && (
+                <div className="flex flex-col col-span-2 pt-1">
+                  <span className="text-slate-500 mb-0.5">Kontak</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-300 flex items-center gap-1">
+                      <Phone size={12} /> {emp.phone}
+                    </span>
+                    {emp.email && (
+                      <span className="text-slate-300 flex items-center gap-1">
+                        <Mail size={12} /> {emp.email}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">
-               <Button variant="secondary" className="flex-1 h-9 text-xs" onClick={() => openEdit(emp)}>
-                  <Edit2 size={14} /> Edit
-               </Button>
-               <Button variant="danger" className="h-9 w-9 px-0" onClick={() => handleDelete(emp.id, emp.fullName)}>
-                  <Trash2 size={14} />
-               </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 h-9 text-xs"
+                onClick={() => openEdit(emp)}
+              >
+                <Edit2 size={14} /> Edit
+              </Button>
+              <Button
+                variant="danger"
+                className="h-9 w-9 px-0"
+                onClick={() => handleDelete(emp.id, emp.fullName)}
+              >
+                <Trash2 size={14} />
+              </Button>
             </div>
           </div>
         ))}
-         {filtered.length === 0 && (
-            <div className="p-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
-              Tidak ada karyawan yang ditemukan.
-            </div>
-         )}
+        {filtered.length === 0 && (
+          <div className="p-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+            Tidak ada karyawan yang ditemukan.
+          </div>
+        )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingId ? 'Edit Karyawan' : 'Tambah Karyawan Baru'}>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-4 border-t border-slate-800">
+          <p className="text-sm text-slate-500">
+            Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} dari {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-3 py-1.5 text-sm text-slate-400">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingId ? 'Edit Karyawan' : 'Tambah Karyawan Baru'}
+      >
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Input 
-            label="Nama Lengkap" 
-            value={formData.fullName} 
-            onChange={e => setFormData({...formData, fullName: e.target.value})} 
+          <Input
+            label="Nama Lengkap"
+            value={formData.fullName}
+            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             required
             placeholder="Contoh: Budi Santoso"
+            error={formErrors.fullName}
           />
           <div className="grid grid-cols-2 gap-5">
-            <Select 
-              label="Jabatan" 
-              value={formData.role} 
-              onChange={e => setFormData({...formData, role: e.target.value as Role})}
+            <Select
+              label="Jabatan"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
             >
               <option value="Staff">Staff</option>
               <option value="Manager">Manager</option>
               <option value="Intern">Intern</option>
               <option value="Admin">Admin</option>
             </Select>
-            <Select 
-              label="Status" 
-              value={formData.status} 
-              onChange={e => setFormData({...formData, status: e.target.value as any})}
+            <Select
+              label="Status"
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
             >
               <option value="Active">Aktif</option>
               <option value="Inactive">Tidak Aktif</option>
             </Select>
           </div>
-          <Input 
-            label="Alamat Email (Opsional)" 
-            type="email" 
-            value={formData.email} 
-            onChange={e => setFormData({...formData, email: e.target.value})} 
+          <Input
+            label="Alamat Email (Opsional)"
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             placeholder="budi@redone.co.id"
+            error={formErrors.email}
           />
-          <Input 
-            label="Nomor Telepon" 
-            value={formData.phone} 
-            onChange={e => setFormData({...formData, phone: e.target.value})} 
+          <Input
+            label="Nomor Telepon"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             placeholder="+62 812..."
+            error={formErrors.phone}
           />
           <div className="grid grid-cols-2 gap-5">
-            <Input 
-              label="Gaji Pokok (HARIAN)" 
-              type="number" 
-              value={formData.baseSalary} 
-              onChange={e => setFormData({...formData, baseSalary: Number(e.target.value)})} 
+            <Input
+              label="Gaji Pokok (HARIAN)"
+              type="number"
+              value={formData.baseSalary}
+              onChange={(e) => setFormData({ ...formData, baseSalary: Number(e.target.value) })}
               placeholder="Contoh: 150000"
               required
+              error={formErrors.baseSalary}
             />
-            <Input 
-              label="Upah Lembur (Per Jam)" 
-              type="number" 
-              value={formData.overtimeRate} 
-              onChange={e => setFormData({...formData, overtimeRate: Number(e.target.value)})} 
+            <Input
+              label="Upah Lembur (Per Jam)"
+              type="number"
+              value={formData.overtimeRate}
+              onChange={(e) => setFormData({ ...formData, overtimeRate: Number(e.target.value) })}
               placeholder="0"
               required
+              error={formErrors.overtimeRate}
             />
           </div>
-          <Input 
-            label="Tanggal Bergabung" 
-            type="date" 
-            value={formData.joinDate} 
-            onChange={e => setFormData({...formData, joinDate: e.target.value})} 
+          <Input
+            label="Tanggal Bergabung"
+            type="date"
+            value={formData.joinDate}
+            onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
             required
           />
           <div className="bg-blue-950/30 p-3 rounded-lg border border-blue-900/50 flex gap-3">
-              <AlertTriangle className="text-blue-400 shrink-0" size={16} />
-              <p className="text-xs text-blue-300">
-                  Untuk menjaga integritas data, karyawan yang sudah memiliki riwayat absensi atau gaji tidak dapat dihapus permanen. Gunakan status "Tidak Aktif" sebagai gantinya.
-              </p>
+            <AlertTriangle className="text-blue-400 shrink-0" size={16} />
+            <p className="text-xs text-blue-300">
+              Untuk menjaga integritas data, karyawan yang sudah memiliki riwayat absensi atau gaji
+              tidak dapat dihapus permanen. Gunakan status "Tidak Aktif" sebagai gantinya.
+            </p>
           </div>
           <div className="pt-2 flex justify-end gap-3 border-t border-slate-800">
-            <Button type="button" variant="secondary" onClick={closeModal}>Batal</Button>
+            <Button type="button" variant="secondary" onClick={closeModal}>
+              Batal
+            </Button>
             <Button type="submit">{editingId ? 'Simpan Perubahan' : 'Buat Karyawan'}</Button>
           </div>
         </form>

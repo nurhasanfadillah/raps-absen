@@ -1,25 +1,20 @@
-import { PayrollReport, Employee } from '../types';
-import { HALF_DAY_THRESHOLD_TIME } from '../config';
+import { PayrollReport } from '../types';
+import { formatJakartaDate } from '../utils/format-date';
 
-const COMPANY_NAME = "PT. REDONE BERKAH MANDIRI UTAMA";
-const COMPANY_ADDRESS = "Gedung Office, Jl. Contoh No. 123, Jakarta Indonesia";
+const COMPANY_NAME = 'PT. REDONE BERKAH MANDIRI UTAMA';
+
 // Updated Official Logo URL (Sidebar/Landscape Version for Reports)
-const COMPANY_LOGO_URL = "https://lh3.googleusercontent.com/d/1fINTQmAuWDJdHosZ_bMXjOXXGqbtmsja";
+const COMPANY_LOGO_URL = 'https://lh3.googleusercontent.com/d/1fINTQmAuWDJdHosZ_bMXjOXXGqbtmsja';
 
 // Helper to format currency
 const formatMoney = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+  }).format(amount);
 };
 
-// Helper for Jakarta Timezone
-const formatJakartaDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString('id-ID', { 
-        timeZone: 'Asia/Jakarta',
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-};
 
 export const generatePayslipPDF = (item: any, report: PayrollReport) => {
   const content = `
@@ -225,7 +220,7 @@ export const generatePayslipPDF = (item: any, report: PayrollReport) => {
             </div>
              <div class="info-group" style="text-align:right;">
                <strong>Tanggal Cetak</strong>
-               <span>${formatJakartaDate(new Date())}</span>
+               <span>${formatJakartaDate(new Date().toISOString())}</span>
             </div>
           </div>
 
@@ -285,13 +280,13 @@ export const generatePayslipPDF = (item: any, report: PayrollReport) => {
     win.document.close();
     // Use timeout to allow image to load
     setTimeout(() => {
-        win.print();
+      win.print();
     }, 500);
   }
 };
 
 export const generateReportPDF = (report: PayrollReport) => {
-   const content = `
+  const content = `
     <html>
       <head>
         <title>Laporan Penggajian - ${COMPANY_NAME}</title>
@@ -370,7 +365,7 @@ export const generateReportPDF = (report: PayrollReport) => {
         <div class="meta">
           <div><strong>ID Laporan:</strong> ${report.id}</div>
           <div><strong>Periode:</strong> ${formatJakartaDate(report.periodStart)} s/d ${formatJakartaDate(report.periodEnd)}</div>
-          <div><strong>Tanggal Cetak:</strong> ${formatJakartaDate(new Date())}</div>
+          <div><strong>Tanggal Cetak:</strong> ${formatJakartaDate(new Date().toISOString())}</div>
         </div>
 
         <table>
@@ -388,7 +383,9 @@ export const generateReportPDF = (report: PayrollReport) => {
             </tr>
           </thead>
           <tbody>
-            ${report.items.map(item => `
+            ${report.items
+              .map(
+                (item) => `
               <tr>
                 <td>${item.employeeId}</td>
                 <td><strong>${item.employeeName}</strong></td>
@@ -400,7 +397,9 @@ export const generateReportPDF = (report: PayrollReport) => {
                 <td class="amount" style="color: #dc2626;">${item.totalDeductions > 0 ? '(' + formatMoney(item.totalDeductions) + ')' : '-'}</td>
                 <td class="amount" style="font-weight:800;">${formatMoney(item.netSalary)}</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join('')}
             
             <tr class="total-row">
               <td colspan="5" style="text-align:right; text-transform:uppercase;">Grand Total</td>
@@ -418,13 +417,13 @@ export const generateReportPDF = (report: PayrollReport) => {
       </body>
     </html>
   `;
-  
+
   const win = window.open('', '', 'height=700,width=1000');
   if (win) {
     win.document.write(content);
     win.document.close();
     setTimeout(() => {
-        win.print();
+      win.print();
     }, 500);
   }
 };
